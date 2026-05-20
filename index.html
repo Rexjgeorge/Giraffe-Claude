@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Claude – Site Summariser</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --border: #272d3d;
+      --accent: #4f8ef7;
+      --accent-glow: rgba(79,142,247,0.15);
+      --text: #e8eaf0;
+      --muted: #7a8099;
+      --green: #3ecf8e;
+      --amber: #f5a623;
+      --red: #e05252;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 12px 14px;
+      resize: vertical;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.99); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result-area {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.75;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    #result-area h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--accent);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Render markdown-like bold and bullets */
+    #result-text strong { color: var(--text); font-weight: 500; }
+    #result-text p { margin-bottom: 10px; }
+    #result-text ul { padding-left: 16px; margin-bottom: 10px; }
+    #result-text li { margin-bottom: 4px; }
+    #result-text h3 { 
+      font-size: 12px; 
+      font-weight: 500; 
+      text-transform: uppercase; 
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin: 14px 0 6px;
+    }
+
+    .error-msg {
+      color: var(--red);
+      background: rgba(224,82,82,0.08);
+      border: 1px solid rgba(224,82,82,0.2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      display: none;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      width: auto;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">✦</div>
+    <div>
+      <h1>Claude Site Summariser</h1>
+      <div class="subtitle">Powered by Anthropic Claude</div>
+    </div>
+  </header>
+
+  <div>
+    <label>Paste your site or feasibility data</label>
+    <textarea id="site-data" placeholder="e.g. Site area: 1,200 sqm&#10;Zoning: R4 High Density&#10;FSR: 3:1&#10;Max height: 24m&#10;GFA: 3,600 sqm&#10;Estimated construction cost: $4.2M&#10;End value: $7.8M&#10;..."></textarea>
+  </div>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <button id="submit-btn" onclick="summarise()">
+    <span class="spinner" id="spinner"></span>
+    <span id="btn-text">Summarise with Claude</span>
+  </button>
+
+  <div id="result-area">
+    <h2>Summary</h2>
+    <div id="result-text"></div>
+    <button class="copy-btn" onclick="copyResult()">Copy summary</button>
+  </div>
+
+  <script>
+    async function summarise() {
+      const siteData = document.getElementById('site-data').value.trim();
+      const btn = document.getElementById('submit-btn');
+      const spinner = document.getElementById('spinner');
+      const btnText = document.getElementById('btn-text');
+      const resultArea = document.getElementById('result-area');
+      const resultText = document.getElementById('result-text');
+      const errorMsg = document.getElementById('error-msg');
+
+      errorMsg.style.display = 'none';
+
+      if (!siteData) {
+        errorMsg.textContent = 'Please paste some site data before summarising.';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      spinner.style.display = 'block';
+      btnText.textContent = 'Analysing…';
+      resultArea.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/summarise', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteData }),
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          errorMsg.textContent = 'Error: ' + data.error;
+          errorMsg.style.display = 'block';
+        } else {
+          resultText.innerHTML = renderMarkdown(data.summary);
+          resultArea.style.display = 'block';
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Could not connect to the server. Please check your deployment.';
+        errorMsg.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Summarise with Claude';
+      }
+    }
+
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/^(?!<[hul])/gm, '')
+        .replace(/(.+)/s, '<p>$1</p>');
+    }
+
+    function copyResult() {
+      const text = document.getElementById('result-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy summary', 2000);
+      });
+    }
+  </script>
+
+</body>
+</html>
